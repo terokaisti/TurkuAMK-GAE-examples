@@ -190,6 +190,27 @@ public class LocalDatastoreTest {
 
 	    	assertEquals(2, Iterators.size(root.now()));
 	    }
+
+		/**
+		 *	SELECT COUNT(*) FROM UserEntity WHERE 
+		 *		(firstName = "A" AND lastName = "A") 
+		 * 
+		 * @return
+		 */
+		@Test
+	    public void testAnd3() {
+			ods.storeAll(getUserEntities());
+	    	RootFindCommand<UserEntity> root = 
+	    		ods.find().type(UserEntity.class).fetchNoFields().
+	    			addSort("lastName", SortDirection.DESCENDING).
+	    			addFilter("firstName", FilterOperator.EQUAL, "A").
+	    			addFilter("gender", FilterOperator.EQUAL, MALE);
+
+	    	List<UserEntity> list = root.returnAll().now();
+	    	assertEquals("C", list.get(0).lastName);
+	    	assertEquals("A", list.get(1).lastName);
+	    }
+		
 		
 		/**
 		 *	SELECT COUNT(*) FROM UserEntity WHERE 
@@ -219,9 +240,9 @@ public class LocalDatastoreTest {
 
 		private List<UserEntity> getUserEntities() {
 			List<UserEntity> list = 
-	    		Arrays.asList(	new UserEntity("A", "A", MALE), //or2 
+	    		Arrays.asList(	new UserEntity("A", "A", MALE), //or2 , and3
 	    						new UserEntity("A", "B", FEMALE), //or2
-	    						new UserEntity("A", "C", MALE),  //or2
+	    						new UserEntity("A", "C", MALE),  //or2, and3
 	    						new UserEntity("B", "A", FEMALE), 
 								new UserEntity("B", "B", MALE), // or2
 								new UserEntity("B", "C", MALE), // or2 
@@ -376,10 +397,10 @@ public class LocalDatastoreTest {
 						
 		}
 		
-		static class P {
+		class P {
 			public @Id Long id;
 		}
-		static class C {
+		class C {
 			public @Id Long id;
 			@Parent P parent;
 		}
@@ -393,5 +414,5 @@ public class LocalDatastoreTest {
 			Key ckey = ods.store().instance(c).parent(p).now();
 			
 			assertEquals(c, ods.load(ckey));
-		}
+		}		
 }
