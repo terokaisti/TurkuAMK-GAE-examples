@@ -1,6 +1,7 @@
 package fi.turkuamk.examples.taskqueue;
 
 import java.net.URL;
+import java.util.Iterator;
 import java.io.IOException;
 
 import javax.servlet.http.HttpServlet;
@@ -21,48 +22,61 @@ public class SchemaWorkerServlet extends HttpServlet {
 	public void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws IOException {
 		
+		migrate(req.getParameter("to"));
+		resp.sendRedirect("/jsp/schemamigration.jsp");
+	}
+	private void migrate(String to) {
 		Queue queue = QueueFactory.getDefaultQueue();
 		
 		TaskOptions options = url("/worker/migrate");
 		options.method(Method.POST);
-		options.param("to", req.getParameter("to"));
+		options.param("to", to);
 		
 		queue.add(options);
-		resp.sendRedirect("/jsp/schemamigration.jsp");
 	}
-	
 	ObjectDatastore ds; 
 	public void doPost(HttpServletRequest req, HttpServletResponse resp)
 		throws IOException {
 		
 		ds = new AnnotationObjectDatastore();
+		boolean retry = false;
 		if(req.getParameter("to").equals("p1")) {
-			workP1();
+			retry = workP1();
 		}
 		else
-			workP2();
-		
+			retry = workP2();
+
+		if(retry == true)
+			migrate(req.getParameter("to"));
 	}
-	private void workP1() {
+	private boolean workP1() {
 		System.out.println("-> p1");
-		for( Person2 p2 : ds.find().type(Person2.class).returnAll().now() ) {
+		Iterator<Person2> p2i = ds.find().type(Person2.class).now();
+		
+		if(p2i.hasNext()) {
+			Person2 p2 = p2i.next();
 			Person1 p1 = new Person1();
 			p1.name = p2.firstName+" "+p2.lastName;
 			ds.store(p1);
+			ds.delete(p2);
 		}
-		ds.deleteAll(Person2.class);
-
+		return p2i.hasNext();
+	
 	}
-	private void workP2() {
+	private boolean workP2() {
 		System.out.println("-> p2");
-		for( Person1 p1 : ds.find().type(Person1.class).returnAll().now() ) {
+		Iterator<Person1> p1i = ds.find().type(Person1.class).now();
+		
+		if(p1i.hasNext()) {
+			Person1 p1 = p1i.next();
 			String[] name = p1.name.split(" ");
 			Person2 p2 = new Person2();
 			p2.firstName = name[0];
 			p2.lastName = name[1];
 			ds.store(p2);
+			ds.delete(p1);
 		}
-		ds.deleteAll(Person1.class);
+		return p1i.hasNext();
 	}
 	
 	
